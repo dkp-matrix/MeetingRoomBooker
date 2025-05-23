@@ -42,7 +42,6 @@ export const users = pgTable("users", {
 export const rooms = pgTable("rooms", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
-  capacity: integer("capacity").notNull(),
   floor: varchar("floor").notNull(),
   equipment: text("equipment").array().default([]),
   isActive: boolean("is_active").notNull().default(true),

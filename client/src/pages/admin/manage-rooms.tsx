@@ -195,40 +195,19 @@ export default function ManageRooms() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="capacity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Capacity</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="12" 
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="floor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Floor</FormLabel>
-                          <FormControl>
-                            <Input placeholder="2" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="floor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Floor</FormLabel>
+                        <FormControl>
+                          <Input placeholder="2" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

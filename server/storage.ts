@@ -60,6 +60,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -73,6 +78,50 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async createUser(userData: any): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async createOrUpdateUser(userData: any): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Auth configuration operations
+  async getActiveAuthConfig(): Promise<any> {
+    const [config] = await db
+      .select()
+      .from(authConfig)
+      .where(eq(authConfig.isActive, true))
+      .limit(1);
+    return config;
+  }
+
+  async setAuthConfig(authType: string, config: any): Promise<void> {
+    // Deactivate all existing configs
+    await db.update(authConfig).set({ isActive: false });
+    
+    // Insert or update the new config
+    await db
+      .insert(authConfig)
+      .values({
+        authType,
+        config,
+        isActive: true,
+      });
   }
 
   // Room operations

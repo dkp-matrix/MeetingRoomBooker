@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,14 +13,40 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { insertBookingSchema, type InsertBooking, type BookingWithDetails } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarPlus, X } from "lucide-react";
+import { CalendarPlus, X, UserPlus, Mail } from "lucide-react";
 import { format } from "date-fns";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 
 const bookingFormSchema = insertBookingSchema.extend({
   duration: z.number().min(15).max(480),
   sendInvite: z.boolean().optional(),
+  attendees: z.array(z.string().email()).optional(),
+}).refine((data) => {
+  // Validate that date is today or in the future
+  const selectedDate = new Date(data.date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return selectedDate >= today;
+}, {
+  message: "Booking date cannot be in the past",
+  path: ["date"]
+}).refine((data) => {
+  // If date is today, validate that time is in the future
+  const selectedDate = new Date(data.date);
+  const today = new Date();
+  const isToday = selectedDate.toDateString() === today.toDateString();
+  
+  if (isToday && data.startTime) {
+    const [hours, minutes] = data.startTime.split(':').map(Number);
+    const selectedDateTime = new Date();
+    selectedDateTime.setHours(hours, minutes, 0, 0);
+    return selectedDateTime > today;
+  }
+  return true;
+}, {
+  message: "Booking time cannot be in the past",
+  path: ["startTime"]
 });
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
@@ -34,6 +61,7 @@ interface BookingModalProps {
 export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }: BookingModalProps) {
   const { toast } = useToast();
   const isEditing = !!booking;
+  const [attendeeEmail, setAttendeeEmail] = useState("");
 
   const { data: rooms = [], isLoading: roomsLoading } = useQuery({
     queryKey: ["/api/rooms"],
@@ -52,6 +80,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
       duration: 60,
       sendInvite: true,
       status: "confirmed",
+      attendees: [],
     },
   });
 
@@ -94,6 +123,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
           duration,
           sendInvite: true,
           status: booking.status,
+          attendees: [],
         });
       } else {
         form.reset({
@@ -106,6 +136,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
           duration: 60,
           sendInvite: true,
           status: "confirmed",
+          attendees: [],
         });
       }
     }
@@ -164,8 +195,35 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
     },
   });
 
+  const addAttendee = () => {
+    if (attendeeEmail && attendeeEmail.includes('@')) {
+      const currentAttendees = form.getValues('attendees') || [];
+      if (!currentAttendees.includes(attendeeEmail)) {
+        form.setValue('attendees', [...currentAttendees, attendeeEmail]);
+        setAttendeeEmail("");
+      } else {
+        toast({
+          title: "Duplicate Email",
+          description: "This attendee is already added.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeAttendee = (emailToRemove: string) => {
+    const currentAttendees = form.getValues('attendees') || [];
+    form.setValue('attendees', currentAttendees.filter(email => email !== emailToRemove));
+  };
+
   const onSubmit = async (data: BookingFormData) => {
-    const { duration, sendInvite, ...bookingData } = data;
+    const { duration, sendInvite, attendees, ...bookingData } = data;
 
     // Check availability first
     try {
@@ -261,9 +319,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                       {roomsLoading ? (
                         <div className="p-2 text-sm text-muted-foreground">Loading rooms...</div>
                       ) : (
-                        rooms.map((room) => (
+                        (rooms as any[]).map((room: any) => (
                           <SelectItem key={room.id} value={room.id.toString()}>
-                            {room.name} ({room.capacity} people)
+                            {room.name} (Floor {room.floor})
                           </SelectItem>
                         ))
                       )}
@@ -372,7 +430,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                     <Textarea 
                       placeholder="Add meeting description or agenda" 
                       rows={3}
-                      {...field} 
+                      {...field}
+                      value={field.value || ""}
                       className="focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </FormControl>
@@ -380,6 +439,59 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                 </FormItem>
               )}
             />
+
+            {/* Attendees Section */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Attendees (Optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Enter attendee email"
+                  value={attendeeEmail}
+                  onChange={(e) => setAttendeeEmail(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addAttendee();
+                    }
+                  }}
+                  className="flex-1 focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                <Button
+                  type="button"
+                  onClick={addAttendee}
+                  variant="outline"
+                  size="icon"
+                  disabled={!attendeeEmail}
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Display added attendees */}
+              {(form.watch('attendees')?.length || 0) > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Added attendees:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(form.watch('attendees') || []).map((email: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {email}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAttendee(email)}
+                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <FormField
               control={form.control}

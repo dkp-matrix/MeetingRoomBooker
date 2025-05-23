@@ -27,13 +27,27 @@ export const sessions = pgTable(
 );
 
 // User storage table for Replit Auth
+// Authentication configuration table
+export const authConfig = pgTable("auth_config", {
+  id: serial("id").primaryKey(),
+  authType: varchar("auth_type").notNull(), // "jwt", "ldap", "oidc", "replit"
+  isActive: boolean("is_active").notNull().default(false),
+  config: jsonb("config"), // Store auth-specific configuration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
+  username: varchar("username").unique(),
   email: varchar("email").unique(),
+  password: varchar("password"), // Only used for JWT auth
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("user"), // "admin" or "user"
+  authType: varchar("auth_type").notNull().default("jwt"), // Track which auth method was used
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -76,10 +76,7 @@ export default function RoomCard({
       
       <CardContent className="space-y-3">
         <div className="flex items-center text-sm text-muted-foreground space-x-4">
-          <div className="flex items-center">
-            <Users className="h-4 w-4 mr-1" />
-            <span className="font-medium">{room.capacity} people</span>
-          </div>
+
           <div className="flex items-center">
             <MapPin className="h-4 w-4 mr-1" />
             <span>Floor {room.floor}</span>

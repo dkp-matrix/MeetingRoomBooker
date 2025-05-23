@@ -184,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               date: validatedBooking.date,
               startTime: validatedBooking.startTime,
               endTime: validatedBooking.endTime,
-              description: validatedBooking.description,
+              description: validatedBooking.description || undefined,
               organizerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown',
               organizerEmail: user.email || 'noreply@roombook.com'
             };

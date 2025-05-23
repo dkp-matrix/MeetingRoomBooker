@@ -153,12 +153,7 @@ export default function BookingCard({
           <span>{booking.startTime} - {booking.endTime}</span>
         </div>
 
-        {booking.room?.capacity && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Users className="h-4 w-4 mr-2" />
-            <span>{booking.room.capacity} people capacity</span>
-          </div>
-        )}
+
         
         {booking.description && (
           <div className="bg-muted/50 p-2 rounded text-sm text-muted-foreground">

@@ -245,10 +245,16 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
       }
 
       // Proceed with booking
+      const completeBookingData = {
+        ...bookingData,
+        attendees: attendees || [],
+        sendInvite: sendInvite || false,
+      };
+
       if (isEditing && booking) {
-        updateBookingMutation.mutate({ id: booking.id, booking: bookingData });
+        updateBookingMutation.mutate({ id: booking.id, booking: completeBookingData });
       } else {
-        createBookingMutation.mutate(bookingData);
+        createBookingMutation.mutate(completeBookingData);
       }
     } catch (error: any) {
       toast({

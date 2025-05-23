@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertRoomSchema, insertBookingSchema } from "@shared/schema";
+import { sendBookingInvites, sendBookingConfirmation } from "./emailService";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -153,8 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const bookingData = { ...req.body, userId };
-      const validatedBooking = insertBookingSchema.parse(bookingData);
+      const { attendees, sendInvite, ...bookingData } = req.body;
+      const validatedBooking = insertBookingSchema.parse({ ...bookingData, userId, attendees: attendees || [] });
 
       // Check availability
       const isAvailable = await storage.checkRoomAvailability(
@@ -169,6 +170,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const booking = await storage.createBooking(validatedBooking);
+      
+      // Send notifications if requested
+      if (sendInvite && (attendees?.length > 0)) {
+        try {
+          const user = await storage.getUser(userId);
+          const room = await storage.getRoom(validatedBooking.roomId);
+          
+          if (user && room) {
+            const emailData = {
+              title: validatedBooking.title,
+              roomName: room.name,
+              date: validatedBooking.date,
+              startTime: validatedBooking.startTime,
+              endTime: validatedBooking.endTime,
+              description: validatedBooking.description,
+              organizerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown',
+              organizerEmail: user.email || 'noreply@roombook.com'
+            };
+
+            // Send invites to attendees
+            await sendBookingInvites(attendees, emailData);
+            
+            // Send confirmation to organizer
+            await sendBookingConfirmation(user.email || 'noreply@roombook.com', emailData);
+          }
+        } catch (emailError) {
+          console.error("Failed to send notifications:", emailError);
+          // Don't fail the booking if email fails
+        }
+      }
+
       res.status(201).json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {

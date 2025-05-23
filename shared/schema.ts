@@ -60,6 +60,7 @@ export const bookings = pgTable("bookings", {
   date: date("date").notNull(),
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
+  attendees: text("attendees").array().default([]), // Array of email addresses
   status: varchar("status").notNull().default("confirmed"), // "confirmed", "cancelled"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

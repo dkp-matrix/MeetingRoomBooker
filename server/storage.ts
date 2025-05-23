@@ -15,9 +15,16 @@ import { db } from "./db";
 import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUser(user: any): Promise<User>;
+  createOrUpdateUser(user: any): Promise<User>;
+  
+  // Auth configuration operations
+  getActiveAuthConfig(): Promise<any>;
+  setAuthConfig(authType: string, config: any): Promise<void>;
 
   // Room operations
   getAllRooms(): Promise<Room[]>;

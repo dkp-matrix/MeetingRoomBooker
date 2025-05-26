@@ -39,6 +39,7 @@ import { CalendarPlus, X, UserPlus, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
 
 const bookingFormSchema = insertBookingSchema
   .extend({
@@ -96,6 +97,7 @@ export default function BookingModal({
   defaultRoomId,
 }: BookingModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditing = !!booking;
   const [attendeeEmail, setAttendeeEmail] = useState("");
 
@@ -310,6 +312,7 @@ export default function BookingModal({
       // Proceed with booking
       const completeBookingData = {
         ...bookingData,
+        userId: user?.id || "",
         attendees: attendees || [],
         sendInvite: sendInvite || false,
       };

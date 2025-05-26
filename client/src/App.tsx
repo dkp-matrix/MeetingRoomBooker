@@ -13,6 +13,7 @@ import ManageRooms from "@/pages/admin/manage-rooms";
 import ManageBookings from "@/pages/admin/manage-bookings";
 import Sidebar from "@/components/layout/sidebar";
 import NotFound from "@/pages/not-found";
+import AuthPage from "./pages/auth-page";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -21,6 +22,7 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/api/login" component={AuthPage} />
         <Route component={NotFound} />
       </Switch>
     );

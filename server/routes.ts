@@ -13,7 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuthRoutes(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -54,7 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (user?.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -64,7 +64,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(room);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid room data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid room data", errors: error.errors });
       }
       console.error("Error creating room:", error);
       res.status(500).json({ message: "Failed to create room" });
@@ -75,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (user?.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -86,7 +88,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(room);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid room data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid room data", errors: error.errors });
       }
       console.error("Error updating room:", error);
       res.status(500).json({ message: "Failed to update room" });
@@ -97,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (user?.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -114,9 +118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      console.log(req.user);
+      // const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       let bookings;
       if (user?.role === "admin") {
         bookings = await storage.getAllBookings();
@@ -132,7 +138,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bookings/my", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      // const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const bookings = await storage.getUserBookings(userId);
       res.json(bookings);
     } catch (error) {
@@ -157,7 +164,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { attendees, sendInvite, ...bookingData } = req.body;
-      const validatedBooking = insertBookingSchema.parse({ ...bookingData, userId, attendees: attendees || [] });
+      const validatedBooking = insertBookingSchema.parse({
+        ...bookingData,
+        userId,
+        attendees: attendees || [],
+      });
 
       // Check availability
       const isAvailable = await storage.checkRoomAvailability(
@@ -168,17 +179,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!isAvailable) {
-        return res.status(409).json({ message: "Room is not available at the requested time" });
+        return res
+          .status(409)
+          .json({ message: "Room is not available at the requested time" });
       }
 
       const booking = await storage.createBooking(validatedBooking);
-      
+
       // Send notifications if requested
-      if (sendInvite && (attendees?.length > 0)) {
+      if (sendInvite && attendees?.length > 0) {
         try {
           const user = await storage.getUser(userId);
           const room = await storage.getRoom(validatedBooking.roomId);
-          
+
           if (user && room) {
             const emailData = {
               title: validatedBooking.title,
@@ -187,15 +200,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               startTime: validatedBooking.startTime,
               endTime: validatedBooking.endTime,
               description: validatedBooking.description || undefined,
-              organizerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown',
-              organizerEmail: user.email || 'noreply@roombook.com'
+              organizerName:
+                `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+                user.email ||
+                "Unknown",
+              organizerEmail: user.email || "noreply@roombook.com",
             };
 
             // Send invites to attendees
             await sendBookingInvites(attendees, emailData);
-            
+
             // Send confirmation to organizer
-            await sendBookingConfirmation(user.email || 'noreply@roombook.com', emailData);
+            await sendBookingConfirmation(
+              user.email || "noreply@roombook.com",
+              emailData
+            );
           }
         } catch (emailError) {
           console.error("Failed to send notifications:", emailError);
@@ -206,7 +225,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid booking data", errors: error.errors });
       }
       console.error("Error creating booking:", error);
       res.status(500).json({ message: "Failed to create booking" });
@@ -232,7 +253,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedBooking = insertBookingSchema.partial().parse(req.body);
 
       // Check availability if time or date is being changed
-      if (validatedBooking.date || validatedBooking.startTime || validatedBooking.endTime || validatedBooking.roomId) {
+      if (
+        validatedBooking.date ||
+        validatedBooking.startTime ||
+        validatedBooking.endTime ||
+        validatedBooking.roomId
+      ) {
         const isAvailable = await storage.checkRoomAvailability(
           validatedBooking.roomId || existingBooking.roomId,
           validatedBooking.date || existingBooking.date,
@@ -242,7 +268,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         if (!isAvailable) {
-          return res.status(409).json({ message: "Room is not available at the requested time" });
+          return res
+            .status(409)
+            .json({ message: "Room is not available at the requested time" });
         }
       }
 
@@ -250,7 +278,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid booking data", errors: error.errors });
       }
       console.error("Error updating booking:", error);
       res.status(500).json({ message: "Failed to update booking" });
@@ -282,16 +312,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Availability check
-  app.post("/api/bookings/check-availability", isAuthenticated, async (req, res) => {
-    try {
-      const { roomId, date, startTime, endTime, excludeBookingId } = req.body;
-      const isAvailable = await storage.checkRoomAvailability(roomId, date, startTime, endTime, excludeBookingId);
-      res.json({ available: isAvailable });
-    } catch (error) {
-      console.error("Error checking availability:", error);
-      res.status(500).json({ message: "Failed to check availability" });
+  app.post(
+    "/api/bookings/check-availability",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        const { roomId, date, startTime, endTime, excludeBookingId } = req.body;
+        const isAvailable = await storage.checkRoomAvailability(
+          roomId,
+          date,
+          startTime,
+          endTime,
+          excludeBookingId
+        );
+        res.json({ available: isAvailable });
+      } catch (error) {
+        console.error("Error checking availability:", error);
+        res.status(500).json({ message: "Failed to check availability" });
+      }
     }
-  });
+  );
 
   // Dashboard stats
   app.get("/api/stats", isAuthenticated, async (req, res) => {

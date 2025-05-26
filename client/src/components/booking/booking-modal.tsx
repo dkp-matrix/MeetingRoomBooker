@@ -1,16 +1,38 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { insertBookingSchema, type InsertBooking, type BookingWithDetails } from "@shared/schema";
+import {
+  insertBookingSchema,
+  type InsertBooking,
+  type BookingWithDetails,
+} from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarPlus, X, UserPlus, Mail } from "lucide-react";
@@ -18,36 +40,45 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-const bookingFormSchema = insertBookingSchema.extend({
-  duration: z.number().min(15).max(480),
-  sendInvite: z.boolean().optional(),
-  attendees: z.array(z.string().email()).optional(),
-}).refine((data) => {
-  // Validate that date is today or in the future
-  const selectedDate = new Date(data.date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return selectedDate >= today;
-}, {
-  message: "Booking date cannot be in the past",
-  path: ["date"]
-}).refine((data) => {
-  // If date is today, validate that time is in the future
-  const selectedDate = new Date(data.date);
-  const today = new Date();
-  const isToday = selectedDate.toDateString() === today.toDateString();
-  
-  if (isToday && data.startTime) {
-    const [hours, minutes] = data.startTime.split(':').map(Number);
-    const selectedDateTime = new Date();
-    selectedDateTime.setHours(hours, minutes, 0, 0);
-    return selectedDateTime > today;
-  }
-  return true;
-}, {
-  message: "Booking time cannot be in the past",
-  path: ["startTime"]
-});
+const bookingFormSchema = insertBookingSchema
+  .extend({
+    duration: z.number().min(15).max(480),
+    sendInvite: z.boolean().optional(),
+    attendees: z.array(z.string().email()).optional(),
+  })
+  .refine(
+    (data) => {
+      // Validate that date is today or in the future
+      const selectedDate = new Date(data.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return selectedDate >= today;
+    },
+    {
+      message: "Booking date cannot be in the past",
+      path: ["date"],
+    }
+  )
+  .refine(
+    (data) => {
+      // If date is today, validate that time is in the future
+      const selectedDate = new Date(data.date);
+      const today = new Date();
+      const isToday = selectedDate.toDateString() === today.toDateString();
+
+      if (isToday && data.startTime) {
+        const [hours, minutes] = data.startTime.split(":").map(Number);
+        const selectedDateTime = new Date(data.date);
+        selectedDateTime.setHours(hours, minutes, 0, 0);
+        return selectedDateTime > new Date();
+      }
+      return true;
+    },
+    {
+      message: "Booking time cannot be in the past",
+      path: ["startTime"],
+    }
+  );
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
 
@@ -58,7 +89,12 @@ interface BookingModalProps {
   defaultRoomId?: number | null;
 }
 
-export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }: BookingModalProps) {
+export default function BookingModal({
+  isOpen,
+  onClose,
+  booking,
+  defaultRoomId,
+}: BookingModalProps) {
   const { toast } = useToast();
   const isEditing = !!booking;
   const [attendeeEmail, setAttendeeEmail] = useState("");
@@ -74,7 +110,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
       title: "",
       description: "",
       roomId: defaultRoomId || 0,
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: format(new Date(), "yyyy-MM-dd"),
       startTime: "",
       endTime: "",
       duration: 60,
@@ -86,19 +122,21 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
 
   // Auto-calculate end time when start time or duration changes
   const watchedValues = form.watch(["startTime", "duration"]);
-  
+
   useEffect(() => {
     const [startTime, duration] = watchedValues;
     if (startTime && duration) {
-      const [hours, minutes] = startTime.split(':').map(Number);
+      const [hours, minutes] = startTime.split(":").map(Number);
       const startMinutes = hours * 60 + minutes;
       const endMinutes = startMinutes + duration;
-      
+
       const endHours = Math.floor(endMinutes / 60) % 24;
       const endMins = endMinutes % 60;
-      
-      const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-      form.setValue('endTime', endTime);
+
+      const endTime = `${endHours.toString().padStart(2, "0")}:${endMins
+        .toString()
+        .padStart(2, "0")}`;
+      form.setValue("endTime", endTime);
     }
   }, [watchedValues, form]);
 
@@ -107,8 +145,10 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
     if (isOpen) {
       if (booking) {
         // Calculate duration from start and end times
-        const [startHours, startMinutes] = booking.startTime.split(':').map(Number);
-        const [endHours, endMinutes] = booking.endTime.split(':').map(Number);
+        const [startHours, startMinutes] = booking.startTime
+          .split(":")
+          .map(Number);
+        const [endHours, endMinutes] = booking.endTime.split(":").map(Number);
         const startTotalMinutes = startHours * 60 + startMinutes;
         const endTotalMinutes = endHours * 60 + endMinutes;
         const duration = endTotalMinutes - startTotalMinutes;
@@ -130,7 +170,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
           title: "",
           description: "",
           roomId: defaultRoomId || 0,
-          date: format(new Date(), 'yyyy-MM-dd'),
+          date: format(new Date(), "yyyy-MM-dd"),
           startTime: "",
           endTime: "",
           duration: 60,
@@ -143,14 +183,24 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
   }, [isOpen, booking, defaultRoomId, form]);
 
   const availabilityMutation = useMutation({
-    mutationFn: async (data: { roomId: number; date: string; startTime: string; endTime: string; excludeBookingId?: number }) => {
-      const response = await apiRequest("POST", "/api/bookings/check-availability", data);
+    mutationFn: async (data: {
+      roomId: number;
+      date: string;
+      startTime: string;
+      endTime: string;
+      excludeBookingId?: number;
+    }) => {
+      const response = await apiRequest(
+        "POST",
+        "/api/bookings/check-availability",
+        data
+      );
       return response.json();
     },
   });
 
   const createBookingMutation = useMutation({
-    mutationFn: async (data: Omit<InsertBooking, 'userId'>) => {
+    mutationFn: async (data: Omit<InsertBooking, "userId">) => {
       const response = await apiRequest("POST", "/api/bookings", data);
       return response.json();
     },
@@ -166,15 +216,23 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
     onError: (error: any) => {
       toast({
         title: "Booking Failed",
-        description: error.message || "Failed to create booking. Please try again.",
+        description:
+          error.message || "Failed to create booking. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const updateBookingMutation = useMutation({
-    mutationFn: async (data: { id: number; booking: Partial<InsertBooking> }) => {
-      const response = await apiRequest("PUT", `/api/bookings/${data.id}`, data.booking);
+    mutationFn: async (data: {
+      id: number;
+      booking: Partial<InsertBooking>;
+    }) => {
+      const response = await apiRequest(
+        "PUT",
+        `/api/bookings/${data.id}`,
+        data.booking
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -189,17 +247,18 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
     onError: (error: any) => {
       toast({
         title: "Update Failed",
-        description: error.message || "Failed to update booking. Please try again.",
+        description:
+          error.message || "Failed to update booking. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const addAttendee = () => {
-    if (attendeeEmail && attendeeEmail.includes('@')) {
-      const currentAttendees = form.getValues('attendees') || [];
+    if (attendeeEmail && attendeeEmail.includes("@")) {
+      const currentAttendees = form.getValues("attendees") || [];
       if (!currentAttendees.includes(attendeeEmail)) {
-        form.setValue('attendees', [...currentAttendees, attendeeEmail]);
+        form.setValue("attendees", [...currentAttendees, attendeeEmail]);
         setAttendeeEmail("");
       } else {
         toast({
@@ -218,8 +277,11 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
   };
 
   const removeAttendee = (emailToRemove: string) => {
-    const currentAttendees = form.getValues('attendees') || [];
-    form.setValue('attendees', currentAttendees.filter(email => email !== emailToRemove));
+    const currentAttendees = form.getValues("attendees") || [];
+    form.setValue(
+      "attendees",
+      currentAttendees.filter((email) => email !== emailToRemove)
+    );
   };
 
   const onSubmit = async (data: BookingFormData) => {
@@ -238,7 +300,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
       if (!availabilityResult.available) {
         toast({
           title: "Room Not Available",
-          description: "The selected room is not available at the requested time. Please choose a different time or room.",
+          description:
+            "The selected room is not available at the requested time. Please choose a different time or room.",
           variant: "destructive",
         });
         return;
@@ -252,7 +315,10 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
       };
 
       if (isEditing && booking) {
-        updateBookingMutation.mutate({ id: booking.id, booking: completeBookingData });
+        updateBookingMutation.mutate({
+          id: booking.id,
+          booking: completeBookingData,
+        });
       } else {
         createBookingMutation.mutate(completeBookingData);
       }
@@ -270,7 +336,10 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
     onClose();
   };
 
-  const isPending = createBookingMutation.isPending || updateBookingMutation.isPending || availabilityMutation.isPending;
+  const isPending =
+    createBookingMutation.isPending ||
+    updateBookingMutation.isPending ||
+    availabilityMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -287,7 +356,12 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              console.error("Validation Errors", errors);
+            })}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="title"
@@ -295,9 +369,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                 <FormItem>
                   <FormLabel>Meeting Title</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Enter meeting title" 
-                      {...field} 
+                    <Input
+                      placeholder="Enter meeting title"
+                      {...field}
                       className="focus:ring-2 focus:ring-primary focus:border-primary"
                     />
                   </FormControl>
@@ -312,8 +386,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Room</FormLabel>
-                  <Select 
-                    value={field.value?.toString()} 
+                  <Select
+                    value={field.value?.toString()}
                     onValueChange={(value) => field.onChange(parseInt(value))}
                   >
                     <FormControl>
@@ -323,7 +397,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                     </FormControl>
                     <SelectContent>
                       {roomsLoading ? (
-                        <div className="p-2 text-sm text-muted-foreground">Loading rooms...</div>
+                        <div className="p-2 text-sm text-muted-foreground">
+                          Loading rooms...
+                        </div>
                       ) : (
                         (rooms as any[]).map((room: any) => (
                           <SelectItem key={room.id} value={room.id.toString()}>
@@ -346,9 +422,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                   <FormItem>
                     <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
+                      <Input
+                        type="date"
+                        {...field}
                         className="focus:ring-2 focus:ring-primary focus:border-primary"
                       />
                     </FormControl>
@@ -363,8 +439,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration</FormLabel>
-                    <Select 
-                      value={field.value?.toString()} 
+                    <Select
+                      value={field.value?.toString()}
                       onValueChange={(value) => field.onChange(parseInt(value))}
                     >
                       <FormControl>
@@ -395,9 +471,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                   <FormItem>
                     <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
+                      <Input
+                        type="time"
+                        {...field}
                         className="focus:ring-2 focus:ring-primary focus:border-primary"
                       />
                     </FormControl>
@@ -413,9 +489,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                   <FormItem>
                     <FormLabel>End Time</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
+                      <Input
+                        type="time"
+                        {...field}
                         readOnly
                         className="bg-muted focus:ring-2 focus:ring-primary focus:border-primary"
                       />
@@ -433,8 +509,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Add meeting description or agenda" 
+                    <Textarea
+                      placeholder="Add meeting description or agenda"
                       rows={3}
                       {...field}
                       value={field.value || ""}
@@ -448,7 +524,9 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
 
             {/* Attendees Section */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Attendees (Optional)</Label>
+              <Label className="text-sm font-medium">
+                Attendees (Optional)
+              </Label>
               <div className="flex gap-2">
                 <Input
                   type="email"
@@ -456,7 +534,7 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                   value={attendeeEmail}
                   onChange={(e) => setAttendeeEmail(e.target.value)}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       addAttendee();
                     }
@@ -473,27 +551,35 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
                   <UserPlus className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               {/* Display added attendees */}
-              {(form.watch('attendees')?.length || 0) > 0 && (
+              {(form.watch("attendees")?.length || 0) > 0 && (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Added attendees:</div>
+                  <div className="text-xs text-muted-foreground">
+                    Added attendees:
+                  </div>
                   <div className="flex flex-wrap gap-1">
-                    {(form.watch('attendees') || []).map((email: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {email}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAttendee(email)}
-                          className="h-auto p-0 ml-1 hover:bg-transparent"
+                    {(form.watch("attendees") || []).map(
+                      (email: string, index: number) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1"
                         >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
+                          <Mail className="h-3 w-3" />
+                          {email}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttendee(email)}
+                            className="h-auto p-0 ml-1 hover:bg-transparent"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      )
+                    )}
                   </div>
                 </div>
               )}
@@ -524,8 +610,8 @@ export default function BookingModal({ isOpen, onClose, booking, defaultRoomId }
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isPending}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-material"
               >

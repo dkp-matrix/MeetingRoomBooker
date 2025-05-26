@@ -2,17 +2,20 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Building, 
-  BarChart3, 
-  Calendar, 
-  DoorOpen, 
-  CalendarDays, 
-  Settings, 
-  Users, 
+import {
+  Building,
+  BarChart3,
+  Calendar,
+  DoorOpen,
+  CalendarDays,
+  Settings,
+  Users,
   ChartBar,
-  LogOut
+  LogOut,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
@@ -30,8 +33,38 @@ export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        console.log("fail logout");
+        throw new Error("Logout failed");
+      }
+    },
+    onSuccess: () => {
+      console.log("sucessfully logout");
+      queryClient.setQueryData(["/api/auth/user"], null);
+      toast({
+        title: "Logged out",
+        description: "You've been successfully logged out. See you soon!",
+      });
+    },
+    onError: (error: Error) => {
+      console.log("fail logout");
+      toast({
+        title: "Logout failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   const isActivePath = (path: string) => {
@@ -50,8 +83,12 @@ export default function Sidebar() {
             <Building className="h-6 w-6 text-sidebar-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">RoomBook</h1>
-            <p className="text-sm text-sidebar-foreground/70">Enterprise Portal</p>
+            <h1 className="text-lg font-semibold text-sidebar-foreground">
+              RoomBook
+            </h1>
+            <p className="text-sm text-sidebar-foreground/70">
+              Enterprise Portal
+            </p>
           </div>
         </div>
       </div>
@@ -65,8 +102,8 @@ export default function Sidebar() {
               <Button
                 variant={isActive ? "default" : "ghost"}
                 className={`w-full justify-start ${
-                  isActive 
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" 
+                  isActive
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -92,8 +129,8 @@ export default function Sidebar() {
                     <Button
                       variant={isActive ? "default" : "ghost"}
                       className={`w-full justify-start ${
-                        isActive 
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" 
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       }`}
                     >
@@ -118,17 +155,16 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">
-              {user?.firstName && user?.lastName 
+              {user?.firstName && user?.lastName
                 ? `${user.firstName} ${user.lastName}`
-                : user?.email || "User"
-              }
+                : user?.email || "User"}
             </p>
             <p className="text-xs text-sidebar-foreground/70 truncate">
               {user?.email}
             </p>
           </div>
         </div>
-        
+
         <Button
           variant="outline"
           size="sm"

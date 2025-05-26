@@ -10,6 +10,7 @@ import {
   type InsertBooking,
   type BookingWithDetails,
   type RoomWithBookings,
+  authConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
@@ -21,7 +22,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: any): Promise<User>;
   createOrUpdateUser(user: any): Promise<User>;
-  
+
   // Auth configuration operations
   getActiveAuthConfig(): Promise<any>;
   setAuthConfig(authType: string, config: any): Promise<void>;
@@ -42,9 +43,15 @@ export interface IStorage {
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBooking(id: number, booking: Partial<InsertBooking>): Promise<Booking>;
   deleteBooking(id: number): Promise<void>;
-  
+
   // Availability checking
-  checkRoomAvailability(roomId: number, date: string, startTime: string, endTime: string, excludeBookingId?: number): Promise<boolean>;
+  checkRoomAvailability(
+    roomId: number,
+    date: string,
+    startTime: string,
+    endTime: string,
+    excludeBookingId?: number
+  ): Promise<boolean>;
   getBookingStats(): Promise<{
     totalRooms: number;
     availableRooms: number;
@@ -61,7 +68,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
     return user;
   }
 
@@ -113,15 +123,13 @@ export class DatabaseStorage implements IStorage {
   async setAuthConfig(authType: string, config: any): Promise<void> {
     // Deactivate all existing configs
     await db.update(authConfig).set({ isActive: false });
-    
+
     // Insert or update the new config
-    await db
-      .insert(authConfig)
-      .values({
-        authType,
-        config,
-        isActive: true,
-      });
+    await db.insert(authConfig).values({
+      authType,
+      config,
+      isActive: true,
+    });
   }
 
   // Room operations
@@ -168,8 +176,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(bookings.userId, users.id))
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .orderBy(desc(bookings.date), asc(bookings.startTime))
-      .then(rows => 
-        rows.map(row => ({
+      .then((rows) =>
+        rows.map((row) => ({
           ...row.bookings,
           user: row.users!,
           room: row.rooms!,
@@ -185,8 +193,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(eq(bookings.userId, userId))
       .orderBy(desc(bookings.date), asc(bookings.startTime))
-      .then(rows => 
-        rows.map(row => ({
+      .then((rows) =>
+        rows.map((row) => ({
           ...row.bookings,
           user: row.users!,
           room: row.rooms!,
@@ -194,7 +202,10 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
-  async getRoomBookings(roomId: number, date?: string): Promise<BookingWithDetails[]> {
+  async getRoomBookings(
+    roomId: number,
+    date?: string
+  ): Promise<BookingWithDetails[]> {
     const conditions = [eq(bookings.roomId, roomId)];
     if (date) {
       conditions.push(eq(bookings.date, date));
@@ -207,8 +218,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(rooms, eq(bookings.roomId, rooms.id))
       .where(and(...conditions))
       .orderBy(asc(bookings.date), asc(bookings.startTime))
-      .then(rows => 
-        rows.map(row => ({
+      .then((rows) =>
+        rows.map((row) => ({
           ...row.bookings,
           user: row.users!,
           room: row.rooms!,
@@ -238,7 +249,10 @@ export class DatabaseStorage implements IStorage {
     return newBooking;
   }
 
-  async updateBooking(id: number, booking: Partial<InsertBooking>): Promise<Booking> {
+  async updateBooking(
+    id: number,
+    booking: Partial<InsertBooking>
+  ): Promise<Booking> {
     const [updatedBooking] = await db
       .update(bookings)
       .set({ ...booking, updatedAt: new Date() })
@@ -272,15 +286,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(bookings)
       .where(
-        excludeBookingId 
-          ? and(...conditions.slice(0, -1))
-          : and(...conditions)
+        excludeBookingId ? and(...conditions.slice(0, -1)) : and(...conditions)
       );
 
     // Check for time conflicts
     for (const booking of conflictingBookings) {
       if (excludeBookingId && booking.id === excludeBookingId) continue;
-      
+
       const bookingStart = booking.startTime;
       const bookingEnd = booking.endTime;
 
@@ -303,33 +315,32 @@ export class DatabaseStorage implements IStorage {
     totalBookingsToday: number;
     utilizationRate: number;
   }> {
-    const today = new Date().toISOString().split('T')[0];
-    const currentTime = new Date().toTimeString().split(' ')[0].substring(0, 5);
+    const today = new Date().toISOString().split("T")[0];
+    const currentTime = new Date().toTimeString().split(" ")[0].substring(0, 5);
 
     const totalRooms = await db
       .select()
       .from(rooms)
       .where(eq(rooms.isActive, true))
-      .then(rows => rows.length);
+      .then((rows) => rows.length);
 
     const todayBookings = await db
       .select()
       .from(bookings)
-      .where(
-        and(
-          eq(bookings.date, today),
-          eq(bookings.status, "confirmed")
-        )
-      );
+      .where(and(eq(bookings.date, today), eq(bookings.status, "confirmed")));
 
     // Count rooms that are currently available (not booked right now)
-    const availableRooms = totalRooms - todayBookings.filter(booking => 
-      booking.startTime <= currentTime && booking.endTime > currentTime
-    ).length;
+    const availableRooms =
+      totalRooms -
+      todayBookings.filter(
+        (booking) =>
+          booking.startTime <= currentTime && booking.endTime > currentTime
+      ).length;
 
-    const utilizationRate = totalRooms > 0 
-      ? Math.round((todayBookings.length / (totalRooms * 8)) * 100) // Assuming 8 working hours
-      : 0;
+    const utilizationRate =
+      totalRooms > 0
+        ? Math.round((todayBookings.length / (totalRooms * 8)) * 100) // Assuming 8 working hours
+        : 0;
 
     return {
       totalRooms,
